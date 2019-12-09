@@ -1,28 +1,27 @@
-﻿// Base file from
-// https://github.com/Gorea235/SpaceEngineers_IngameScriptingBaseusing Sandbox.Game.EntityComponents;
-using Sandbox.ModAPI.Ingame;
-using Sandbox.ModAPI.Interfaces;
-using SpaceEngineers.Game.ModAPI.Ingame;
+/*-*/
+// Base file from
+// https://github.com/Gorea235/SpaceEngineers_IngameScriptingBase
+using System;
 using System.Collections.Generic;
-using System.Collections;
 using System.Linq;
 using System.Text;
-using System;
-using VRage.Collections;
-using VRage.Game.Components;
-using VRage.Game.GUI.TextPanel;
-using VRage.Game.ModAPI.Ingame.Utilities;
-using VRage.Game.ModAPI.Ingame;
-using VRage.Game.ObjectBuilders.Definitions;
-using VRage.Game;
-using VRage;
+using Sandbox.Common;
+using Sandbox.Definitions;
+using Sandbox.Engine;
+using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
+using Sandbox.Game;
+using SpaceEngineers.Game.ModAPI.Ingame;
 using VRageMath;
+using VRage.Game.ModAPI.Ingame;
+using VRage.Game;
+using VRage.Game.GUI.TextPanel;
 
-namespace IngameScript
+namespace Scripts.TIM
 {
-        class Program : MyGridProgram
+    class Program : MyGridProgram
     {
-        #region mdk preserve
+        /*-*/
         /*
 Taleden's Inventory Manager - Updated (Unofficial)
 version 1.7.7 (2019-03-07)
@@ -165,21 +164,70 @@ PhysicalGunObject/
         // Item types which may have quantities which are not whole numbers.
         static readonly HashSet<string> FRACTIONAL_TYPES = new HashSet<string> { "INGOT", "ORE" };
 
+        public struct Ore
+        {
+            public string Name;
+            public float YieldWeight;
+
+            public static implicit operator Ore(string value)
+            {
+                var res = value.Split(':');
+                return new Ore
+                {
+                    Name = res[0].ToUpper(),
+                    YieldWeight = Single.Parse(res[1]),
+                };
+            }
+        }
+
         // Ore subtypes which refine into Ingots with a different subtype name, or
         // which cannot be refined at all (if set to "").
-        static readonly Dictionary<string, string> ORE_PRODUCT = new Dictionary<string, string>
+        private static readonly Dictionary<string, Ore[]> OreProducts = new Dictionary<string, Ore[]>
         {
-            // vanilla products
-            { "ICE", "" }, { "ORGANIC", "" }, { "SCRAP", "IRON" },
+// vanilla products
+            { "ORGANIC", new Ore[] { "None:0" } },
+            { "Scrap".ToUpper(), new Ore[] { "Iron:0.8" } },
 
-            // better stone products
-            // http://steamcommunity.com/sharedfiles/filedetails/?id=406244471
-            {"DENSE IRON", "IRON"}, {"ICY IRON", "IRON"}, {"HEAZLEWOODITE", "NICKEL"}, {"CATTIERITE", "COBALT"}, {"PYRITE", "GOLD"},
-            {"TAENITE", "NICKEL"}, {"COHENITE", "COBALT"}, {"KAMACITE", "NICKEL"}, {"GLAUCODOT", "COBALT"}, {"ELECTRUM", "GOLD"},
-            {"PORPHYRY", "GOLD"}, {"SPERRYLITE", "PLATINUM"}, {"NIGGLIITE", "PLATINUM"}, {"GALENA", "SILVER"}, {"CHLORARGYRITE", "SILVER"},
-            {"COOPERITE", "PLATINUM"}, {"PETZITE", "SILVER"}, {"HAPKEITE", "SILICON"}, {"DOLOMITE", "MAGNESIUM"}, {"SINOITE", "SILICON"},
-            {"OLIVINE", "MAGNESIUM"}, {"QUARTZ", "SILICON"}, {"AKIMOTOITE", "MAGNESIUM"}, {"WADSLEYITE", "MAGNESIUM"}, {"CARNOTITE", "URANIUM"},
-            {"AUTUNITE", "URANIUM"}, {"URANIAURITE", "GOLD"}
+// 1KG -> outputs
+            { "STONE", new Ore[] { "Stone:0.014", "Iron:0.03", "Nickel:0.0024", "Silicon:0.004" } },
+            { "IRON", new Ore[] { "Iron:0.7" } },
+            { "NICKEL", new Ore[] { "Nickel:0.4" } },
+            { "COBALT", new Ore[] { "Cobalt:0.3" } },
+            { "MAGNESIUM", new Ore[] { "Magnesium:0.007" } },
+            { "SILICON", new Ore[] { "Silicon:0.7" } },
+            { "SILVER", new Ore[] { "Silver:0.1" } },
+            { "GOLD", new Ore[] { "Gold:0.01" } },
+            { "PLATINUM", new Ore[] { "Platinum:0.005" } },
+            { "URANIUM", new Ore[] { "Uranium:0.01" } },
+            { "ICE", new Ore[] { "None:0" } },
+
+            { "[CM] DENSE IRON (FE+)".ToUpper(), new Ore[] { "Iron:0.9" } },
+            { "[CM] IRON (FE)", new Ore[] { "Iron:0.4", "Ice:0.5" } },
+            { "[CM] HEAZLEWOODITE (NI)", new Ore[] { "Nickel:0.4", "Ice:0.15" } },
+            { "[CM] CATTIERITE (CO)", new Ore[] { "Cobalt:0.27" } },
+            { "[CM] PYRITE (FE,AU)", new Ore[] { "Iron:0.550", "Gold:0.002" } },
+            { "[CM] TAENITE (FE,NI)", new Ore[] { "Nickel:0.2", "Iron:0.35" } },
+            { "[CM] COHENITE (NI,CO)", new Ore[] { "Cobalt:0.13", "Nickel:0.21" } },
+            { "[CM] KAMACITE (FE,NI,CO)", new Ore[] { "Iron:0.284", "Nickel:0.174", "Cobalt:0.100" } },
+            { "[CM] GLAUCODOT (FE,CO)", new Ore[] { "Iron:0.234", "Cobalt:0.2" } },
+            { "[PM] ELECTRUM (AU,AG)", new Ore[] { "Silver:0.045", "Gold:0.009" } },
+            { "[PM] PORPHYRY (AU)", new Ore[] { "Gold:0.006" } },
+            { "[PM] SPERRYLITE (PT)", new Ore[] { "Platinum:0.003" } },
+            { "[PM] NIGGLIITE (PT)", new Ore[] { "Platinum:0.003" } },
+            { "[PM] GALENA (AG)", new Ore[] { "Silver:0.035" } },
+            { "[PM] CHLORARGYRITE (AG)", new Ore[] { "Silver:0.064", "Ice:0.002" } },
+            { "[PM] COOPERITE (NI,PT)", new Ore[] { "Nickel:0.36", "Platinum:0.002" } },
+            { "[PM] PETZITE (AG,AU)", new Ore[] { "Silver:0.045", "Gold:0.009" } },
+            { "[S] HAPKEITE (FE,SI)", new Ore[] { "Iron:0.35", "Silicon:0.45" } },
+            { "[S] DOLOMITE (MG)", new Ore[] { "Magnesium:0.007" } },
+            { "[S] SINOITE (SI)", new Ore[] { "Silicon:0.62", "Ice:0.44" } },
+            { "[S] OLIVINE (SI,MG)", new Ore[] { "Silicon:0.180", "Magnesium:0.008", "Ice:0.35" } },
+            { "[S] QUARTZ (SI)", new Ore[] { "Silicon:0.490", "Ice:1.12" } },
+            { "[S] AKIMOTOITE (SI,MG)", new Ore[] { "Silicon:0.22", "Magnesium:0.005" } },
+            { "[S] WADSLEYITE (SI,MG)", new Ore[] { "Silicon:0.3", "Magnesium:0.003" } },
+            { "[EI] CARNOTITE (U)", new Ore[] { "Uranium:0.002", "Ice:0.572" } },
+            { "[EI] AUTUNITE (U)", new Ore[] { "Uranium:0.004" } },
+            { "[EI] URANIAURITE (U,AU)".ToUpper(), new Ore[] { "Gold:0.006", "Uranium:0.004" } }
         };
 
         // Block types/subtypes which restrict item types/subtypes from their first
@@ -209,8 +257,7 @@ PhysicalGunObject/
         // =================================================
         const string MOB = "MyObjectBuilder_";
         const string NON_AMMO = "Component,GasContainerObject,Ingot,Ore,OxygenContainerObject,PhysicalGunObject\n";
-        #endregion mdk preserve
-
+        /*m*/
         #region Fields
 
         #region Version
@@ -370,7 +417,7 @@ PhysicalGunObject/
         static List<string> subs = new List<string>();
         static Dictionary<string, string> subLabel = new Dictionary<string, string>();
         static Dictionary<string, List<string>> subTypes = new Dictionary<string, List<string>>();
-        static Dictionary<string, Dictionary<string, InventoryItemData>> typeSubData = new Dictionary<string, Dictionary<string, InventoryItemData>>();
+        static Dictionary<string, Dictionary<string, InventoryItemData>> _typeSubData = new Dictionary<string, Dictionary<string, InventoryItemData>>();
         static Dictionary<MyDefinitionId, ItemId> blueprintItem = new Dictionary<MyDefinitionId, ItemId>();
 
         #endregion
@@ -442,7 +489,7 @@ PhysicalGunObject/
         /// <summary>
         /// The set of all docked grid (including the current one).
         /// </summary>
-        HashSet<IMyCubeGrid> dockedgrids = new HashSet<IMyCubeGrid>();
+        HashSet<IMyCubeGrid> _dockedGrids = new HashSet<IMyCubeGrid>();
         Dictionary<int, Dictionary<string, Dictionary<string, Dictionary<IMyInventory, long>>>> priTypeSubInvenRequest = new Dictionary<int, Dictionary<string, Dictionary<string, Dictionary<IMyInventory, long>>>>();
         Dictionary<IMyTextPanel, int> qpanelPriority = new Dictionary<IMyTextPanel, int>();
         Dictionary<IMyTextPanel, List<string>> qpanelTypes = new Dictionary<IMyTextPanel, List<string>>();
@@ -600,7 +647,7 @@ PhysicalGunObject/
                     typeLabel[itemType] = itypelabel;
                     typeSubs[itemType] = new List<string>();
                     typeAmount[itemType] = 0L;
-                    typeSubData[itemType] = new Dictionary<string, InventoryItemData>();
+                    _typeSubData[itemType] = new Dictionary<string, InventoryItemData>();
                 }
 
                 // new subtype?
@@ -612,14 +659,14 @@ PhysicalGunObject/
                 }
 
                 // new type/subtype pair?
-                if (!typeSubData[itemType].ContainsKey(itemSubType))
+                if (!_typeSubData[itemType].ContainsKey(itemSubType))
                 {
                     foundNewItem = true;
                     typeSubs[itemType].Add(itemSubType);
                     subTypes[itemSubType].Add(itemType);
-                    typeSubData[itemType][itemSubType] = new InventoryItemData(itemSubType, minimum, ratio, label == "" ? isublabel : label, blueprint == "" ? isublabel : blueprint);
+                    _typeSubData[itemType][itemSubType] = new InventoryItemData(itemSubType, minimum, ratio, label == "" ? isublabel : label, blueprint == "" ? isublabel : blueprint);
                     if (blueprint != null)
-                        blueprintItem[typeSubData[itemType][itemSubType].blueprint] = new ItemId(itemType, itemSubType);
+                        blueprintItem[_typeSubData[itemType][itemSubType].blueprint] = new ItemId(itemType, itemSubType);
                 }
             }
 
@@ -770,6 +817,9 @@ PhysicalGunObject/
                 debugText.Add(err);
                 UpdateStatusPanels();
                 EchoR(err);
+
+                EchoR(ex.Message);
+                EchoR(ex.StackTrace);
                 throw ex;
             }
 
@@ -1005,7 +1055,7 @@ PhysicalGunObject/
         {
             // search for other TIMs
             List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
-            GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(blocks, blk => (blk == Me) | (tagRegex.IsMatch(blk.CustomName) & dockedgrids.Contains(blk.CubeGrid)));
+            GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(blocks, blk => (blk == Me) | (tagRegex.IsMatch(blk.CustomName) & _dockedGrids.Contains(blk.CubeGrid)));
 
             // check to see if this block is the first available TIM
             int selfIndex = blocks.IndexOf(Me); // current index in search
@@ -1037,7 +1087,7 @@ PhysicalGunObject/
             foreach (string itype in types)
             {
                 typeAmount[itype] = 0;
-                foreach (InventoryItemData data in typeSubData[itype].Values)
+                foreach (InventoryItemData data in _typeSubData[itype].Values)
                 {
                     data.amount = 0L;
                     data.avail = 0L;
@@ -1098,7 +1148,7 @@ PhysicalGunObject/
             // reset everything that we'll check during this step
             foreach (string itype in types)
             {
-                foreach (InventoryItemData data in typeSubData[itype].Values)
+                foreach (InventoryItemData data in _typeSubData[itype].Values)
                 {
                     data.qpriority = -1;
                     data.quota = 0L;
@@ -1424,12 +1474,12 @@ PhysicalGunObject/
             }
 
             // starting "here", traverse all docked ships
-            dockedgrids.Clear();
-            dockedgrids.Add(Me.CubeGrid);
+            _dockedGrids.Clear();
+            _dockedGrids.Add(Me.CubeGrid);
             if (!gridShip.TryGetValue(Me.CubeGrid, out s1))
                 return;
             ships.Add(s1);
-            dockedgrids.UnionWith(shipGrids[s1]);
+            _dockedGrids.UnionWith(shipGrids[s1]);
             squeue.Enqueue(s1);
             while (squeue.Count > 0)
             {
@@ -1440,7 +1490,7 @@ PhysicalGunObject/
                 {
                     if (ships.Add(ship2))
                     {
-                        dockedgrids.UnionWith(shipGrids[ship2]);
+                        _dockedGrids.UnionWith(shipGrids[ship2]);
                         squeue.Enqueue(ship2);
                         debugText.Add(shipName[ship2] + " docked to " + shipName[s1] + " at " + String.Join(", ", shipDocks[ship2]));
                     }
@@ -1484,7 +1534,7 @@ PhysicalGunObject/
             GridTerminalSystem.GetBlocksOfType<T>(blocks);
             foreach (IMyTerminalBlock block in blocks)
             {
-                if (!dockedgrids.Contains(block.CubeGrid))
+                if (!_dockedGrids.Contains(block.CubeGrid))
                     continue;
                 match = tagRegex.Match(block.CustomName);
                 if (match.Success)
@@ -1538,7 +1588,7 @@ PhysicalGunObject/
                         // update amounts
                         amount = (long)((double)stacks[s].Amount * 1e6);
                         typeAmount[itype] += amount;
-                        data = typeSubData[itype][isub];
+                        data = _typeSubData[itype][isub];
                         data.amount += amount;
                         data.avail += amount;
                         data.invenTotal.TryGetValue(inven, out total);
@@ -1575,7 +1625,7 @@ PhysicalGunObject/
 
                     amount = (long)((double)stack.Amount * 1e6);
                     typeAmount[itype] -= amount;
-                    typeSubData[itype][isub].amount -= amount;
+                    _typeSubData[itype][isub].amount -= amount;
                 }
             }
 
@@ -1590,7 +1640,7 @@ PhysicalGunObject/
                     isub = stack.Type.SubtypeId.ToUpper();
 
                     amount = (long)((double)stack.Amount * 1e6);
-                    data = typeSubData[itype][isub];
+                    data = _typeSubData[itype][isub];
                     data.avail -= amount;
                     data.locked += amount;
                 }
@@ -1617,7 +1667,7 @@ PhysicalGunObject/
             ScreenFormatter sf;
 
             // reset ore "quotas"
-            foreach (InventoryItemData d in typeSubData["ORE"].Values)
+            foreach (InventoryItemData d in _typeSubData["ORE"].Values)
                 d.minimum = d.amount == 0L ? 0L : Math.Max(d.minimum, d.amount);
 
             foreach (IMyTextPanel panel in qpanelPriority.Keys)
@@ -1670,7 +1720,7 @@ PhysicalGunObject/
                     {
                         if (ParseItemValueText(null, words, itypeCur, out itype, out isub, out p, out amount, out ratio, out force) & itype == itypeCur & itype != "" & isub != "")
                         {
-                            data = typeSubData[itype][isub];
+                            data = _typeSubData[itype][isub];
                             qtypeSubCols[itype][isub] = new[] { data.label, "" + Math.Round(amount / 1e6, 2), "" + Math.Round(ratio * 100.0f, 2) + "%" };
                             if ((priority > 0 & (priority < data.qpriority | data.qpriority <= 0)) | (priority == 0 & data.qpriority < 0))
                             {
@@ -1728,7 +1778,7 @@ PhysicalGunObject/
                     sf.Add(2, "  Pct", true);
                     sf.Add(3, "", true);
                     sf.AddBlankRow();
-                    foreach (InventoryItemData d in typeSubData[qtype].Values)
+                    foreach (InventoryItemData d in _typeSubData[qtype].Values)
                     {
                         if (!qtypeSubCols[qtype].ContainsKey(d.subType))
                             qtypeSubCols[qtype][d.subType] = new[] { d.label, "" + Math.Round(d.minimum / 1e6, 2), "" + Math.Round(d.ratio * 100.0f, 2) + "%" };
@@ -1736,7 +1786,7 @@ PhysicalGunObject/
                     foreach (string qsub in qtypeSubCols[qtype].Keys)
                     {
                         words = qtypeSubCols[qtype][qsub];
-                        sf.Add(0, typeSubData[qtype].ContainsKey(qsub) ? words[0] : words[0].ToLower(), true);
+                        sf.Add(0, _typeSubData[qtype].ContainsKey(qsub) ? words[0] : words[0].ToLower(), true);
                         sf.Add(1, words.Length > 1 ? words[1] : "", true);
                         sf.Add(2, words.Length > 2 ? words[2] : "", true);
                         sf.Add(3, words.Length > 3 ? words[3] : "", true);
@@ -1755,7 +1805,7 @@ PhysicalGunObject/
                 if (quotaStable & total > 0L)
                 {
                     scalesubs.Clear();
-                    foreach (InventoryItemData d in typeSubData[qtype].Values)
+                    foreach (InventoryItemData d in _typeSubData[qtype].Values)
                     {
                         if (d.ratio > 0.0f & total >= (long)(d.minimum / d.ratio))
                             scalesubs.Add(d.subType);
@@ -1764,25 +1814,25 @@ PhysicalGunObject/
                     {
                         scalesubs.Sort((s1, s2) =>
                         {
-                            InventoryItemData d1 = typeSubData[qtype][s1], d2 = typeSubData[qtype][s2];
+                            InventoryItemData d1 = _typeSubData[qtype][s1], d2 = _typeSubData[qtype][s2];
                             long q1 = (long)(d1.amount / d1.ratio), q2 = (long)(d2.amount / d2.ratio);
                             return q1 == q2 ? d1.ratio.CompareTo(d2.ratio) : q1.CompareTo(q2);
                         });
                         isub = scalesubs[(scalesubs.Count - 1) / 2];
-                        data = typeSubData[qtype][isub];
+                        data = _typeSubData[qtype][isub];
                         total = (long)(data.amount / data.ratio + 0.5f);
                         if (debug)
                         {
                             debugText.Add("median " + typeLabel[qtype] + " is " + subLabel[isub] + ", " + total / 1e6 + " -> " + data.amount / 1e6 / data.ratio);
                             foreach (string qsub in scalesubs)
                             {
-                                data = typeSubData[qtype][qsub];
+                                data = _typeSubData[qtype][qsub];
                                 debugText.Add("  " + subLabel[qsub] + " @ " + data.amount / 1e6 + " / " + data.ratio + " => " + (long)(data.amount / 1e6 / data.ratio + 0.5f));
                             }
                         }
                     }
                 }
-                foreach (InventoryItemData d in typeSubData[qtype].Values)
+                foreach (InventoryItemData d in _typeSubData[qtype].Values)
                 {
                     amount = Math.Max(d.quota, Math.Max(d.minimum, (long)(d.ratio * total + 0.5f)));
                     d.quota = amount / round * round;
@@ -2077,7 +2127,7 @@ PhysicalGunObject/
             {
                 parts[0] = parts[0].Trim();
                 parts[1] = parts[1].Trim();
-                if (typeSubs.ContainsKey(parts[0]) && parts[1] == "" | typeSubData[parts[0]].ContainsKey(parts[1]))
+                if (typeSubs.ContainsKey(parts[0]) && parts[1] == "" | _typeSubData[parts[0]].ContainsKey(parts[1]))
                 {
                     // exact type/subtype
                     if (force || BlockAcceptsTypeSub(block, parts[0], parts[1]))
@@ -2130,7 +2180,7 @@ PhysicalGunObject/
             else if (subTypes.ContainsKey(parts[0]))
             {
                 // exact subtype
-                if (qtype != "" && typeSubData[qtype].ContainsKey(parts[0]))
+                if (qtype != "" && _typeSubData[qtype].ContainsKey(parts[0]))
                 {
                     found++;
                     itype = qtype;
@@ -2320,7 +2370,7 @@ PhysicalGunObject/
             IMyInventory inven = block.GetInventory(inv);
             ir.TryGetValue(inven, out a);
             ir[inven] = amount;
-            typeSubData[itype][isub].quota += Math.Min(0L, -a) + Math.Max(0L, amount);
+            _typeSubData[itype][isub].quota += Math.Min(0L, -a) + Math.Max(0L, amount);
 
             // disable conveyor for some block types
             // (IMyInventoryOwner is supposedly obsolete but there's no other way to do this for all of these block types at once)
@@ -2433,7 +2483,7 @@ PhysicalGunObject/
             {
                 foreach (string itype in types)
                 {
-                    foreach (InventoryItemData data in typeSubData[itype].Values)
+                    foreach (InventoryItemData data in _typeSubData[itype].Values)
                     {
                         if (data.avail > 0L)
                             debugText.Add("No place to put " + GetShorthand(data.avail) + " " + typeLabel[itype] + "/" + subLabel[data.subType] + ", containers may be full");
@@ -2456,7 +2506,7 @@ PhysicalGunObject/
             if (!FRACTIONAL_TYPES.Contains(itype))
                 round = 1000000L;
             invenRequest = new Dictionary<IMyInventory, long>();
-            InventoryItemData data = typeSubData[itype][isub];
+            InventoryItemData data = _typeSubData[itype][isub];
 
             // sum up the requests
             totalrequest = 0L;
@@ -2503,7 +2553,7 @@ PhysicalGunObject/
 
                             if (avail >= amount)
                             {
-                                if (debug) debugText.Add("locked " + (amtInven.Owner == null ? "???" : (amtInven.Owner as IMyTerminalBlock).CustomName) + " gets " + amount / 1e6 + ", has " + avail / 1e6);
+                                if (debug) debugText.Add("locked " + (amtInven.Owner == null ? "???" : (amtInven.Owner as IMyTerminalBlock)?.CustomName) + " gets " + amount / 1e6 + ", has " + avail / 1e6);
                                 dropped++;
                                 totalrequest -= request;
                                 invenRequest[amtInven] = 0L;
@@ -2590,7 +2640,7 @@ PhysicalGunObject/
 
             remaining = (VRage.MyFixedPoint)(amount / 1e6);
             fromInven.GetItems(stacks);
-            s = Math.Min(typeSubData[itype][isub].invenSlot[fromInven], stacks.Count);
+            s = Math.Min(_typeSubData[itype][isub].invenSlot[fromInven], stacks.Count);
             while (remaining > 0 & s-- > 0)
             {
                 stype = "" + stacks[s].Type.TypeId;
@@ -2630,7 +2680,7 @@ PhysicalGunObject/
                                 " from " + (fromInven.Owner == null ? "???" : (fromInven.Owner as IMyTerminalBlock).CustomName) + " to " + (toInven.Owner == null ? "???" : (toInven.Owner as IMyTerminalBlock).CustomName)
                             );
                             //					volume -= (double)fromInven.CurrentVolume;
-                            //					typeSubData[itype][isub].volume = (1000.0 * volume / (double)moved);
+                            //					_typeSubData[itype][isub].volume = (1000.0 * volume / (double)moved);
                         }
                         remaining -= moved;
                     }
@@ -2651,36 +2701,76 @@ PhysicalGunObject/
 
         #region Production Management
 
+        void Scratch()
+        {
+            List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
+            GridTerminalSystem.GetBlocksOfType<IMyRefinery>(blocks, blk => true);
+            List<MyInventoryItem> stacks = new List<MyInventoryItem>();
+
+            var sb = new StringBuilder();
+
+            foreach (IMyFunctionalBlock blk in blocks)
+            {
+                blk.GetInventory(0).GetItems(stacks);
+                if (stacks.Count > 0 && blk.Enabled)
+                {
+                    foreach (var item in stacks)
+                    {
+                        var typeId = item.Type.TypeId;
+                        sb.AppendLine(typeId.Substring(typeId.LastIndexOf('_') + 1) + "/" + item.Type.SubtypeId);
+                    }
+                }
+            }
+
+            IMyTextSurface mesurface0 = Me.GetSurface(0);
+            mesurface0.ContentType = ContentType.TEXT_AND_IMAGE;
+            mesurface0.FontSize = 2;
+            mesurface0.Alignment = TextAlignment.CENTER;
+            mesurface0.WriteText("Hello World");
+            mesurface0.WriteText(sb.ToString());
+        }
+
         void ScanProduction()
         {
             List<IMyTerminalBlock> blocks1 = new List<IMyTerminalBlock>(), blocks2 = new List<IMyTerminalBlock>();
             List<MyInventoryItem> stacks = new List<MyInventoryItem>();
-            string itype, isub, isubIng;
+            string iType, iSub, isubIng;
             List<MyProductionItem> queue = new List<MyProductionItem>();
             ItemId item;
 
             producerWork.Clear();
 
-            GridTerminalSystem.GetBlocksOfType<IMyGasGenerator>(blocks1, blk => dockedgrids.Contains(blk.CubeGrid));
-            GridTerminalSystem.GetBlocksOfType<IMyRefinery>(blocks2, blk => dockedgrids.Contains(blk.CubeGrid));
+            GridTerminalSystem.GetBlocksOfType<IMyGasGenerator>(blocks1, blk => _dockedGrids.Contains(blk.CubeGrid));
+            GridTerminalSystem.GetBlocksOfType<IMyRefinery>(blocks2, blk => _dockedGrids.Contains(blk.CubeGrid));
+
             foreach (IMyFunctionalBlock blk in blocks1.Concat(blocks2))
             {
                 stacks.Clear();
                 blk.GetInventory(0).GetItems(stacks);
-                if (stacks.Count > 0 & blk.Enabled)
+                if (stacks.Count > 0 && blk.Enabled)
                 {
-                    itype = "" + stacks[0].Type.TypeId;
-                    itype = itype.Substring(itype.LastIndexOf('_') + 1).ToUpper();
-                    isub = stacks[0].Type.SubtypeId.ToUpper();
-                    if (typeSubs.ContainsKey(itype) & subTypes.ContainsKey(isub))
-                        typeSubData[itype][isub].producers.Add(blk);
-                    if (itype == "ORE" & (ORE_PRODUCT.TryGetValue(isub, out isubIng) ? isubIng : isubIng = isub) != "" & typeSubData["INGOT"].ContainsKey(isubIng))
-                        typeSubData["INGOT"][isubIng].producers.Add(blk);
-                    producerWork[blk] = new ProducerWork(new ItemId(itype, isub), (double)stacks[0].Amount);
+                    iType = "" + stacks[0].Type.TypeId;
+                    iType = iType.Substring(iType.LastIndexOf('_') + 1).ToUpper();
+                    iSub = stacks[0].Type.SubtypeId.ToUpper();
+
+                    if (typeSubs.ContainsKey(iType) & subTypes.ContainsKey(iSub))
+                        _typeSubData[iType][iSub].producers.Add(blk);
+
+                    var isOre = iType == "ORE";
+                    Ore[] iSubProducts;
+                    if (isOre && OreProducts.TryGetValue(iSub, out iSubProducts)) {
+                        foreach (var subProduct in iSubProducts) {
+                            if (subProduct.Name != "None" && _typeSubData["INGOT"].ContainsKey(subProduct.Name)) {
+                                _typeSubData["INGOT"][subProduct.Name].producers.Add(blk);
+                            }
+                        }
+                    }
+
+                    producerWork[blk] = new ProducerWork(new ItemId(iType, iSub), (double)stacks[0].Amount);
                 }
             }
 
-            GridTerminalSystem.GetBlocksOfType<IMyAssembler>(blocks1, blk => dockedgrids.Contains(blk.CubeGrid));
+            GridTerminalSystem.GetBlocksOfType<IMyAssembler>(blocks1, blk => _dockedGrids.Contains(blk.CubeGrid));
             foreach (IMyAssembler blk in blocks1)
             {
                 if (blk.Enabled & !blk.IsQueueEmpty & blk.Mode == MyAssemblerMode.Assembly)
@@ -2689,7 +2779,7 @@ PhysicalGunObject/
                     if (blueprintItem.TryGetValue(queue[0].BlueprintId, out item))
                     {
                         if (typeSubs.ContainsKey(item.type) & subTypes.ContainsKey(item.subType))
-                            typeSubData[item.type][item.subType].producers.Add(blk);
+                            _typeSubData[item.type][item.subType].producers.Add(blk);
                         producerWork[blk] = new ProducerWork(item, (double)queue[0].Amount - blk.CurrentProgress);
                     }
                 }
@@ -2702,7 +2792,7 @@ PhysicalGunObject/
                 return;
 
             bool debug = debugLogic.Contains("refineries");
-            string itype, itype2, isub, isub2, isubIngot;
+            string itype, itype2, isub, isub2;
             InventoryItemData data;
             int level, priority;
             List<string> ores = new List<string>();
@@ -2710,24 +2800,38 @@ PhysicalGunObject/
             List<MyInventoryItem> stacks = new List<MyInventoryItem>();
             double speed, oldspeed;
             ProducerWork work;
+            Ore[] oreProducts;
             bool ready;
             List<IMyRefinery> refineries = new List<IMyRefinery>();
 
             if (debug) debugText.Add("Refinery management:");
 
             // scan inventory levels
+            if (debug)
+            debugText.Add(String.Format("Checking Ores: {0}", String.Join(",", typeSubs["ORE"])));
+
             foreach (string isubOre in typeSubs["ORE"])
             {
-                if (!ORE_PRODUCT.TryGetValue(isubOre, out isubIngot))
-                    isubIngot = isubOre;
-                if (isubIngot != "" & typeSubData["ORE"][isubOre].avail > 0L & typeSubData["INGOT"].TryGetValue(isubIngot, out data))
+                if (OreProducts.TryGetValue(isubOre.ToUpper(), out oreProducts))
                 {
-                    if (data.quota > 0L)
+                    if (debug)
+                        debugText.Add(
+                            String.Format("  Considering: {0} with products: {1}",
+                                isubOre, String.Join(",", oreProducts.Select(s => s.Name))));
+
+                    foreach (var product in oreProducts)
                     {
-                        level = (int)(100L * data.amount / data.quota);
-                        ores.Add(isubOre);
-                        oreLevel[isubOre] = level;
-                        if (debug) debugText.Add("  " + subLabel[isubIngot] + " @ " + data.amount / 1e6 + "/" + data.quota / 1e6 + "," + (isubOre == isubIngot ? "" : " Ore/" + subLabel[isubOre]) + " L=" + level + "%");
+                        if (_typeSubData["ORE"][isubOre].avail > 0L && _typeSubData["INGOT"].TryGetValue(product.Name, out data))
+                        {
+                            if (data.quota > 0L)
+                            {
+                                level = (int)(100L * data.amount / data.quota);
+                                ores.Add(isubOre);
+                                oreLevel[isubOre] = level;
+                                if (debug)
+                                    debugText.Add("  " + subLabel[product.Name] + " @ " + data.amount / 1e6 + "/" + data.quota / 1e6 + "," + (isubOre == product.Name ? "" : " Ore/" + subLabel[isubOre]) + " L=" + level + "%");
+                            }
+                        }
                     }
                 }
             }
@@ -2737,14 +2841,25 @@ PhysicalGunObject/
             {
                 itype = isub = isub2 = "";
                 stacks.Clear();
+
+                if (debug)
+                    debugText.Add(String.Format("Considering refinery: {0}", rfn.Name));
+
                 rfn.GetInventory(0).GetItems(stacks);
                 if (stacks.Count > 0)
                 {
                     itype = "" + stacks[0].Type.TypeId;
                     itype = itype.Substring(itype.LastIndexOf('_') + 1).ToUpper();
                     isub = stacks[0].Type.SubtypeId.ToUpper();
+
                     if (itype == "ORE" & oreLevel.ContainsKey(isub))
+                    {
+                        if (debug)
+                            debugText.Add(String.Format("Ore Level Pre: {0}", oreLevel[isub]));
                         oreLevel[isub] += Math.Max(1, oreLevel[isub] / refineryOres.Count);
+                        if (debug)
+                            debugText.Add(String.Format("Ore Level Pos: {0}", oreLevel[isub]));
+                    }
                     if (stacks.Count > 1)
                     {
                         itype2 = "" + stacks[1].Type.TypeId;
@@ -2755,40 +2870,97 @@ PhysicalGunObject/
                         AddInvenRequest(rfn, 0, itype2, isub2, -2, (long)((double)stacks[1].Amount * 1e6 + 0.5));
                     }
                 }
+
+                if (debug)
+                    debugText.Add("Processing Producer Work");
                 if (producerWork.TryGetValue(rfn, out work))
                 {
-                    data = typeSubData[work.item.type][work.item.subType];
+                    if (debug)
+                    {
+                        debugText.Add(String.Format("Item Type: {0}; SubType: {1}", work.item.type, work.item.subType));
+                        foreach (var value in _typeSubData[work.item.type])
+                        {
+                            debugText.Add(value.Key);
+                        }
+                    }
+
+                    data = _typeSubData[work.item.type][work.item.subType];
                     oldspeed = data.prdSpeed.TryGetValue("" + rfn.BlockDefinition, out oldspeed) ? oldspeed : 1.0;
                     speed = work.item.subType == isub ? Math.Max(work.quantity - (double)stacks[0].Amount, 0.0) : Math.Max(work.quantity, oldspeed);
                     speed = Math.Min(Math.Max((speed + oldspeed) / 2.0, 0.2), 10000.0);
                     data.prdSpeed["" + rfn.BlockDefinition] = speed;
-                    if (debug & (int)(oldspeed + 0.5) != (int)(speed + 0.5)) debugText.Add("  Update " + rfn.BlockDefinition.SubtypeName + ":" + subLabel[work.item.subType] + " refine speed: " + (int)(oldspeed + 0.5) + " -> " + (int)(speed + 0.5) + "kg/cycle");
+
+                    if (debug & (int) (oldspeed + 0.5) != (int) (speed + 0.5))
+                        debugText.Add("  Update " + rfn.BlockDefinition.SubtypeName + ":" +
+                                      subLabel[work.item.subType] + " refine speed: " + (int) (oldspeed + 0.5) +
+                                      " -> " + (int) (speed + 0.5) + "kg/cycle");
                 }
-                if (refineryOres[rfn].Count > 0) refineryOres[rfn].IntersectWith(oreLevel.Keys); else refineryOres[rfn].UnionWith(oreLevel.Keys);
+
+                if (refineryOres[rfn].Count > 0)
+                    refineryOres[rfn].IntersectWith(oreLevel.Keys);
+                else
+                    refineryOres[rfn].UnionWith(oreLevel.Keys);
+
                 ready = refineryOres[rfn].Count > 0;
                 if (stacks.Count > 0)
                 {
-                    speed = itype == "ORE" ? typeSubData["ORE"][isub].prdSpeed.TryGetValue("" + rfn.BlockDefinition, out speed) ? speed : 1.0 : 1e6;
+                    speed = itype == "ORE" ? _typeSubData["ORE"][isub].prdSpeed.TryGetValue("" + rfn.BlockDefinition, out speed) ? speed : 1.0 : 1e6;
                     AddInvenRequest(rfn, 0, itype, isub, -1, (long)Math.Min((double)stacks[0].Amount * 1e6 + 0.5, 10 * speed * 1e6 + 0.5));
                     ready = ready & itype == "ORE" & (double)stacks[0].Amount < 2.5 * speed & stacks.Count == 1;
                 }
                 if (ready)
                     refineries.Add(rfn);
-                if (debug) debugText.Add(
-                    "  " + rfn.CustomName + (stacks.Count < 1 ? " idle" : " refining " + (int)stacks[0].Amount + "kg " + (isub == "" ? "unknown" : subLabel[isub] + (!oreLevel.ContainsKey(isub) ? "" : " (L=" + oreLevel[isub] + "%)")) + (stacks.Count < 2 ? "" : ", then " + (int)stacks[1].Amount + "kg " + (isub2 == "" ? "unknown" : subLabel[isub2] + (!oreLevel.ContainsKey(isub2) ? "" : " (L=" + oreLevel[isub2] + "%)")))) + "; " + (oreLevel.Count == 0 ? "nothing to do" : ready ? "ready" : refineryOres[rfn].Count == 0 ? "restricted" : "busy")
-                );
+
+
+
+                if (debug)
+                    debugText.Add(
+                        "  " + rfn.CustomName + (stacks.Count < 1
+                            ? " idle"
+                            : " refining " +
+                              (int) stacks[0].Amount + "kg " + (isub == ""
+                                  ? "unknown"
+                                  : subLabel[isub] +
+                                    (!oreLevel.ContainsKey(isub) ? "" : " (L=" + oreLevel[isub] + "%)")) +
+                              (stacks.Count < 2
+                                  ? ""
+                                  : ", then " +
+                                    (int) stacks[1].Amount + "kg " + (isub2 == ""
+                                        ? "unknown"
+                                        : subLabel[isub2] + (!oreLevel.ContainsKey(isub2)
+                                              ? ""
+                                              : " (L=" +
+                                                oreLevel[isub2] + "%)")))) + "; " +
+                        (oreLevel.Count == 0
+                            ? "nothing to do"
+                            : ready
+                                ? "ready"
+                                : refineryOres[rfn].Count == 0
+                                    ? "restricted"
+                                    : "busy")
+                    );
             }
 
             // skip refinery:ore assignment if there are no ores or ready refineries
             if (ores.Count > 0 & refineries.Count > 0)
             {
-                ores.Sort((o1, o2) =>
+                // sort the list of ores based on their relative quotes for ingot demand
+                ores.Sort((ore1, ore2) =>
                 {
-                    string i1, i2;
-                    if (!ORE_PRODUCT.TryGetValue(o1, out i1)) i1 = o1;
-                    if (!ORE_PRODUCT.TryGetValue(o2, out i2)) i2 = o2;
-                    return -1 * typeSubData["INGOT"][i1].quota.CompareTo(typeSubData["INGOT"][i2].quota);
+                    // Get the list of products for the given ores
+                    Ore[] i1 = OreProducts[ore1];
+                    Ore[] i2 = OreProducts[ore2];
+
+                    // Summate the quotas of the ingots they provide
+                    var i1Quota = i1.Sum(x =>
+                        1 - (int) (_typeSubData["INGOT"][x.Name].avail / _typeSubData["INGOT"][x.Name].quota));
+                    var i2Quota = i2.Sum(x =>
+                        1 - (int) (_typeSubData["INGOT"][x.Name].avail / _typeSubData["INGOT"][x.Name].quota));
+
+                    // Sort by the ore which has the highest 'quota score'.
+                    return i1Quota.CompareTo(i2Quota);
                 });
+
                 refineries.Sort((r1, r2) => refineryOres[r1].Count.CompareTo(refineryOres[r2].Count));
                 foreach (IMyRefinery rfn in refineries)
                 {
@@ -2807,7 +2979,7 @@ PhysicalGunObject/
                         numberRefineres++;
                         rfn.UseConveyorSystem = false;
                         priority = rfn.GetInventory(0).IsItemAt(0) ? -4 : -3;
-                        speed = typeSubData["ORE"][isub].prdSpeed.TryGetValue("" + rfn.BlockDefinition, out speed) ? speed : 1.0;
+                        speed = _typeSubData["ORE"][isub].prdSpeed.TryGetValue("" + rfn.BlockDefinition, out speed) ? speed : 1.0;
                         AddInvenRequest(rfn, 0, "ORE", isub, priority, (long)(10 * speed * 1e6 + 0.5));
                         oreLevel[isub] += Math.Min(Math.Max((int)(oreLevel[isub] * 0.41), 1), 100 / refineryOres.Count);
                         if (debug) debugText.Add("  " + rfn.CustomName + " assigned " + (int)(10 * speed + 0.5) + "kg " + subLabel[isub] + " (L=" + oreLevel[isub] + "%)");
@@ -2820,8 +2992,11 @@ PhysicalGunObject/
             {
                 if (priTypeSubInvenRequest.ContainsKey(priority))
                 {
-                    foreach (string isubOre in priTypeSubInvenRequest[priority]["ORE"].Keys)
-                        AllocateItemBatch(true, priority, "ORE", isubOre);
+                    if (priTypeSubInvenRequest[priority].ContainsKey("ORE"))
+                    {
+                        foreach (string isubOre in priTypeSubInvenRequest[priority]["ORE"].Keys)
+                            AllocateItemBatch(true, priority, "ORE", isubOre);
+                    }
                 }
             }
         }
@@ -2848,7 +3023,7 @@ PhysicalGunObject/
 
             // scan inventory levels
             typeAmount.TryGetValue("COMPONENT", out ttlCmp);
-            amount = 90 + (int)(10 * typeSubData["INGOT"].Values.Min(d => d.subType != "URANIUM" & (d.minimum > 0L | d.ratio > 0.0f) ? d.amount / Math.Max(d.minimum, 17.5 * d.ratio * ttlCmp) : 2.0));
+            amount = 90 + (int)(10 * _typeSubData["INGOT"].Values.Min(d => d.subType != "URANIUM" & (d.minimum > 0L | d.ratio > 0.0f) ? d.amount / Math.Max(d.minimum, 17.5 * d.ratio * ttlCmp) : 2.0));
             if (debug) debugText.Add("  Component par L=" + amount + "%");
             foreach (string itype in types)
             {
@@ -2856,7 +3031,7 @@ PhysicalGunObject/
                 {
                     foreach (string isub in typeSubs[itype])
                     {
-                        data = typeSubData[itype][isub];
+                        data = _typeSubData[itype][isub];
                         data.hold = Math.Max(0, data.hold - 1);
                         item = new ItemId(itype, isub);
                         itemPar[item] = itype == "COMPONENT" & data.ratio > 0.0f ? amount : 100;
@@ -2879,15 +3054,15 @@ PhysicalGunObject/
                 if (!asm.IsQueueEmpty)
                 {
                     asm.GetQueue(queue);
-                    data = blueprintItem.TryGetValue(queue[0].BlueprintId, out item) ? typeSubData[item.type][item.subType] : null;
+                    data = blueprintItem.TryGetValue(queue[0].BlueprintId, out item) ? _typeSubData[item.type][item.subType] : null;
                     if (data != null & itemLevel.ContainsKey(item))
                         itemLevel[item] += Math.Max(1, (int)(1e8 * (double)queue[0].Amount / data.quota + 0.5));
                     if (queue.Count > 1 && blueprintItem.TryGetValue(queue[1].BlueprintId, out item2) & itemLevel.ContainsKey(item2))
-                        itemLevel[item2] += Math.Max(1, (int)(1e8 * (double)queue[1].Amount / typeSubData[item2.type][item2.subType].quota + 0.5));
+                        itemLevel[item2] += Math.Max(1, (int)(1e8 * (double)queue[1].Amount / _typeSubData[item2.type][item2.subType].quota + 0.5));
                 }
                 if (producerWork.TryGetValue(asm, out work))
                 {
-                    data2 = typeSubData[work.item.type][work.item.subType];
+                    data2 = _typeSubData[work.item.type][work.item.subType];
                     oldspeed = data2.prdSpeed.TryGetValue("" + asm.BlockDefinition, out oldspeed) ? oldspeed : 1.0;
                     if (work.item.type != item.type | work.item.subType != item.subType)
                     {
@@ -2931,7 +3106,7 @@ PhysicalGunObject/
             if (itemLevel.Count > 0 & assemblers.Count > 0)
             {
                 items = new List<ItemId>(itemLevel.Keys);
-                items.Sort((i1, i2) => -1 * typeSubData[i1.type][i1.subType].quota.CompareTo(typeSubData[i2.type][i2.subType].quota));
+                items.Sort((i1, i2) => -1 * _typeSubData[i1.type][i1.subType].quota.CompareTo(_typeSubData[i2.type][i2.subType].quota));
                 assemblers.Sort((a1, a2) => assemblerItems[a1].Count.CompareTo(assemblerItems[a2].Count));
                 foreach (IMyAssembler asm in assemblers)
                 {
@@ -2939,7 +3114,7 @@ PhysicalGunObject/
                     level = int.MaxValue;
                     foreach (ItemId i in items)
                     {
-                        if (itemLevel[i] < Math.Min(level, itemPar[i]) & assemblerItems[asm].Contains(i) & typeSubData[i.type][i.subType].hold < 1)
+                        if (itemLevel[i] < Math.Min(level, itemPar[i]) & assemblerItems[asm].Contains(i) & _typeSubData[i.type][i.subType].hold < 1)
                         {
                             item = i;
                             level = itemLevel[i];
@@ -2952,7 +3127,7 @@ PhysicalGunObject/
                         asm.CooperativeMode = false;
                         asm.Repeating = false;
                         asm.Mode = MyAssemblerMode.Assembly;
-                        data = typeSubData[item.type][item.subType];
+                        data = _typeSubData[item.type][item.subType];
                         speed = data.prdSpeed.TryGetValue("" + asm.BlockDefinition, out speed) ? speed : 1.0;
                         amount = Math.Max((int)(10 * speed), 10);
                         asm.AddQueueItem(data.blueprint, (double)amount);
@@ -3012,7 +3187,7 @@ PhysicalGunObject/
                     sf.Add(4, " / ", true);
                     sf.Add(5, header5, true);
                     sf.AddBlankRow();
-                    foreach (InventoryItemData data in typeSubData[itype].Values)
+                    foreach (InventoryItemData data in _typeSubData[itype].Values)
                     {
                         sf.Add(0, data.amount == 0L ? "0.0" : "" + (double)data.amount / data.quota);
                         sf.Add(1, data.label, true);
@@ -3050,8 +3225,8 @@ PhysicalGunObject/
                     panel.WritePublicTitle("Script Status");
                     if (panelSpan.ContainsKey(panel))
                         debugText.Add("Status panels cannot be spanned");
-                    panel.WritePublicText(sb.ToString());
-                    panel.ShowPublicTextOnScreen();
+                    panel.WriteText(sb.ToString());
+                    panel.ContentType = ContentType.TEXT_AND_IMAGE;
                 }
             }
 
@@ -3067,8 +3242,8 @@ PhysicalGunObject/
                     panel.WritePublicTitle("Script Debugging");
                     if (panelSpan.ContainsKey(panel))
                         debugText.Add("Debug panels cannot be spanned");
-                    panel.WritePublicText(String.Join("\n", debugText));
-                    panel.ShowPublicTextOnScreen();
+                    panel.WriteText(String.Join("\n", debugText));
+                    panel.ContentType = ContentType.TEXT_AND_IMAGE;
                 }
             }
             blockErrors.Clear();
@@ -3547,3 +3722,4 @@ PhysicalGunObject/
         /*-*/
     }
 }
+/*-*/
